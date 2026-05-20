@@ -1,0 +1,38 @@
+{
+  "name": "ai-inc-tracker",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "check": "tsc --noEmit",
+    "deploy:setup-gmail-watch": "bun run scripts/setup-gmail-watch.ts",
+    "deploy:setup-telegram-webhook": "bun run scripts/setup-telegram-webhook.ts",
+    "test:gmail": "bun run scripts/test-gmail.ts",
+    "test:fake-email": "bun run scripts/test-fake-email.ts",
+    "test:fake-email:debit": "bun run scripts/test-fake-email.ts debit",
+    "test:fake-email:credit": "bun run scripts/test-fake-email.ts credit",
+    "test:fake-email:append": "bun run scripts/test-fake-email.ts debit --append",
+    "test:fake-email:append-test": "bun run scripts/test-fake-email.ts debit --append",
+    "sheets:setup": "bun run scripts/setup-sheets.ts",
+    "sheets:reset": "bun run scripts/reset-sheets.ts",
+    "telegram:webhook-info": "bun run scripts/telegram-webhook-info.ts",
+    "google:get-token": "bun run scripts/get-token.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "bun-types": "^1.3.13"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "zod": "^4.4.3"
+  }
+}
