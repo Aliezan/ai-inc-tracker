@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
-import { getEmailForTransactionParsing, getGmailAuth } from '../services/gmail';
-import { parseEmailToTransaction } from '../services/gemini';
-import { appendTransaction, getAppState, setAppState } from '../services/sheets';
-import { config } from '../config';
+import { getEmailForTransactionParsing, getGmailAuth } from '../services/gmail.js';
+import { parseEmailToTransaction } from '../services/gemini.js';
+import { appendTransaction, getAppState, setAppState } from '../services/sheets.js';
+import { config } from '../config.js';
 
 export const gmailRouter = Router();
 

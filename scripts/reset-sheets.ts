@@ -1,15 +1,15 @@
 import 'dotenv/config';
-import { resetTransactionLogs, setupTransactionSheets, TRANSACTION_SHEETS } from '../services/sheets';
+import { resetTransactionLogs, setupTransactionSheets, TRANSACTION_SHEETS } from '../services/sheets.js';
 
 function usage() {
   console.log(`
 Usage:
-  bun run sheets:reset -- --confirm [--include-test] [--include-balances]
+  npm run sheets:reset -- --confirm [--include-test] [--include-balances]
 
 Examples:
-  bun run sheets:reset -- --confirm
-  bun run sheets:reset -- --confirm --include-test
-  bun run sheets:reset -- --confirm --include-test --include-balances
+  npm run sheets:reset -- --confirm
+  npm run sheets:reset -- --confirm --include-test
+  npm run sheets:reset -- --confirm --include-test --include-balances
 
 By default this clears rows 3+ from ${TRANSACTION_SHEETS.real} only.
 Headers and total rows are kept.
@@ -44,7 +44,7 @@ async function main() {
 main().catch(err => {
   if (err?.message === 'invalid_grant' || err?.response?.data?.error === 'invalid_grant') {
     console.error('Sheet reset failed: Google rejected GOOGLE_REFRESH_TOKEN.');
-    console.error('Run `bun run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
+    console.error('Run `npm run build && npm run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
     process.exit(1);
   }
 

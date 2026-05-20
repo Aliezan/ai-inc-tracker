@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { config } from '../config';
-import { registerTelegramWebhook } from '../routes/telegram';
+import { config } from '../config.js';
+import { registerTelegramWebhook } from '../routes/telegram.js';
 
 async function main() {
   if (!config.publicBaseUrl) {

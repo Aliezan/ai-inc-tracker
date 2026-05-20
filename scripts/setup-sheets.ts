@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { SPREADSHEET_TITLE, setupTransactionSheets, TRANSACTION_SHEETS } from '../services/sheets';
+import { SPREADSHEET_TITLE, setupTransactionSheets, TRANSACTION_SHEETS } from '../services/sheets.js';
 
 async function main() {
   await setupTransactionSheets();
@@ -14,7 +14,7 @@ async function main() {
 main().catch(err => {
   if (err?.message === 'invalid_grant' || err?.response?.data?.error === 'invalid_grant') {
     console.error('Google Sheets setup failed: Google rejected GOOGLE_REFRESH_TOKEN.');
-    console.error('Run `bun run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
+    console.error('Run `npm run build && npm run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
     console.error('Make sure the token is generated with the same GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET currently in .env.');
     process.exit(1);
   }

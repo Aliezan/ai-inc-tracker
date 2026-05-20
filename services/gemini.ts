@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
-import { config } from '../config';
+import { config } from '../config.js';
 
 const ai = new GoogleGenerativeAI(config.geminiApiKey);
 

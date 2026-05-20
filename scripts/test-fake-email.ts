@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { parseEmailToTransaction } from '../services/gemini';
-import { appendTestTransaction, TRANSACTION_SHEETS } from '../services/sheets';
+import { parseEmailToTransaction } from '../services/gemini.js';
+import { appendTestTransaction, TRANSACTION_SHEETS } from '../services/sheets.js';
 
 const samples = {
   debit: {
@@ -51,13 +51,13 @@ Available balance: IDR 3,440,000
 function usage() {
   console.log(`
 Usage:
-  bun run scripts/test-fake-email.ts [debit|credit|commute] [--append]
+  npm run test:fake-email -- [debit|credit|commute] [--append]
 
 Examples:
-  bun run scripts/test-fake-email.ts
-  bun run scripts/test-fake-email.ts credit
-  bun run scripts/test-fake-email.ts commute
-  bun run scripts/test-fake-email.ts debit --append
+  npm run test:fake-email
+  npm run test:fake-email -- credit
+  npm run test:fake-email -- commute
+  npm run test:fake-email -- debit --append
 
 Default mode parses a fake email and prints the transaction only.
 Use --append to also write the parsed transaction to ${TRANSACTION_SHEETS.test}.
@@ -110,7 +110,7 @@ async function main() {
 main().catch(err => {
   if (err?.message === 'invalid_grant' || err?.response?.data?.error === 'invalid_grant') {
     console.error('Fake email test failed: Google rejected GOOGLE_REFRESH_TOKEN.');
-    console.error('Run `bun run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
+    console.error('Run `npm run build && npm run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
     console.error('Make sure the token is generated with the same GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET currently in .env.');
     process.exit(1);
   }

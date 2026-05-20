@@ -1,5 +1,5 @@
 import { gmail_v1, google } from 'googleapis';
-import { config } from '../config';
+import { config } from '../config.js';
 
 type MessagePart = gmail_v1.Schema$MessagePart;
 

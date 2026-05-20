@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { setupGmailWatch } from '../services/gmail';
-import { setAppState, setupTransactionSheets } from '../services/sheets';
+import { setupGmailWatch } from '../services/gmail.js';
+import { setAppState, setupTransactionSheets } from '../services/sheets.js';
 
 async function main() {
   await setupTransactionSheets();

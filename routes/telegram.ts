@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { config } from '../config';
-import { answerQuestion } from '../services/gemini';
+import { config } from '../config.js';
+import { answerQuestion } from '../services/gemini.js';
 import {
   BANK_ACCOUNTS,
   getBalancesAsCsv,
   getTransactionsAsCsv,
   updateAccountBalance,
-} from '../services/sheets';
+} from '../services/sheets.js';
 
 export const telegramRouter = Router();
 

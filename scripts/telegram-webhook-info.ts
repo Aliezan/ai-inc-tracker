@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { config } from '../config';
+import { config } from '../config.js';
 
 async function main() {
   const res = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getWebhookInfo`);

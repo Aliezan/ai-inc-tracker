@@ -1,13 +1,25 @@
-FROM oven/bun:1.3.13-alpine
+FROM node:22-alpine AS deps
 
 WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+FROM node:22-alpine AS build
 
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npm run build
+RUN npm prune --omit=dev
 
+FROM node:22-alpine
+
+WORKDIR /app
 ENV NODE_ENV=production
-EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+
+EXPOSE 3000
+CMD ["npm", "run", "start"]

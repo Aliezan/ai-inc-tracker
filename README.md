@@ -5,14 +5,15 @@ Personal finance tracker that ingests Gmail bank notifications, logs transaction
 ## Local Setup
 
 ```bash
-bun install
+npm install
 cp .env.example .env
 ```
 
 Fill `.env`, then initialize the spreadsheet:
 
 ```bash
-bun run sheets:setup
+npm run build
+npm run sheets:setup
 ```
 
 ## Production Runtime
@@ -20,7 +21,7 @@ bun run sheets:setup
 Start only the HTTP service:
 
 ```bash
-bun run start
+npm run start
 ```
 
 Health endpoints:
@@ -37,13 +38,13 @@ Runtime startup does not register external webhooks. Run those explicitly during
 Register Telegram webhook:
 
 ```bash
-bun run deploy:setup-telegram-webhook
+npm run deploy:setup-telegram-webhook
 ```
 
 Register Gmail watch:
 
 ```bash
-bun run deploy:setup-gmail-watch
+npm run deploy:setup-gmail-watch
 ```
 
 Gmail watches expire. Renew them at least daily with `deploy:setup-gmail-watch`.
@@ -78,7 +79,7 @@ Row 3+: data
 Reset log rows while keeping headers and totals:
 
 ```bash
-bun run sheets:reset -- --confirm
+npm run sheets:reset -- --confirm
 ```
 
 ## Testing
@@ -86,19 +87,19 @@ bun run sheets:reset -- --confirm
 Dry-run fake email parsing:
 
 ```bash
-bun run test:fake-email
+npm run test:fake-email
 ```
 
 Append fake transaction to test sheet:
 
 ```bash
-bun run test:fake-email:append-test
+npm run test:fake-email:append-test
 ```
 
 Check Telegram webhook status:
 
 ```bash
-bun run telegram:webhook-info
+npm run telegram:webhook-info
 ```
 
 ## Scheduled Reports
@@ -106,27 +107,27 @@ bun run telegram:webhook-info
 Send a spending/income report to Telegram:
 
 ```bash
-bun run report:daily
-bun run report:weekly
-bun run report:monthly
+npm run report:daily
+npm run report:weekly
+npm run report:monthly
 ```
 
 Dry run without sending:
 
 ```bash
-bun run report:send -- daily --dry-run
+npm run report:send -- daily --dry-run
 ```
 
 Example cron entries:
 
 ```cron
-0 21 * * * cd /app && bun run report:daily
-0 21 * * 0 cd /app && bun run report:weekly
-0 21 1 * * cd /app && bun run report:monthly
+0 21 * * * cd /app && npm run report:daily
+0 21 * * 0 cd /app && npm run report:weekly
+0 21 1 * * cd /app && npm run report:monthly
 ```
 
 List Gemini models available to your API key:
 
 ```bash
-bun run gemini:list-models
+npm run gemini:list-models
 ```

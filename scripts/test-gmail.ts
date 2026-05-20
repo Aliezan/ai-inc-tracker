@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { google } from 'googleapis';
-import { extractEmailBody } from '../services/gmail';
+import { extractEmailBody } from '../services/gmail.js';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;

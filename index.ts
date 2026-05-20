@@ -1,7 +1,7 @@
 import express from 'express';
-import { config } from './config';
-import { gmailRouter } from './routes/gmail';
-import { telegramRouter } from './routes/telegram';
+import { config } from './config.js';
+import { gmailRouter } from './routes/gmail.js';
+import { telegramRouter } from './routes/telegram.js';
 
 const app = express();
 

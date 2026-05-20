@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { summarizeMoneyReport } from '../services/gemini';
-import { getBalancesAsCsv, getTransactionsAsCsv } from '../services/sheets';
-import { sendTelegramMessage } from '../services/telegram';
+import { summarizeMoneyReport } from '../services/gemini.js';
+import { getBalancesAsCsv, getTransactionsAsCsv } from '../services/sheets.js';
+import { sendTelegramMessage } from '../services/telegram.js';
 
 const REPORT_LIMITS = {
   daily: 80,
@@ -14,13 +14,13 @@ type ReportPeriod = keyof typeof REPORT_LIMITS;
 function usage() {
   console.log(`
 Usage:
-  bun run report:send -- [daily|weekly|monthly] [--limit N] [--dry-run]
+  npm run report:send -- [daily|weekly|monthly] [--limit N] [--dry-run]
 
 Examples:
-  bun run report:send -- daily
-  bun run report:send -- weekly
-  bun run report:send -- monthly --limit 1000
-  bun run report:send -- daily --dry-run
+  npm run report:send -- daily
+  npm run report:send -- weekly
+  npm run report:send -- monthly --limit 1000
+  npm run report:send -- daily --dry-run
   `.trim());
 }
 

@@ -1,36 +1,35 @@
 {
   "name": "ai-inc-tracker",
-  "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx index.ts",
     "check": "tsc --noEmit",
-    "deploy:setup-gmail-watch": "bun run scripts/setup-gmail-watch.ts",
-    "deploy:setup-telegram-webhook": "bun run scripts/setup-telegram-webhook.ts",
-    "report:send": "bun run scripts/send-money-report.ts",
-    "report:daily": "bun run scripts/send-money-report.ts daily",
-    "report:weekly": "bun run scripts/send-money-report.ts weekly",
-    "report:monthly": "bun run scripts/send-money-report.ts monthly",
-    "test:gmail": "bun run scripts/test-gmail.ts",
-    "test:fake-email": "bun run scripts/test-fake-email.ts",
-    "test:fake-email:debit": "bun run scripts/test-fake-email.ts debit",
-    "test:fake-email:credit": "bun run scripts/test-fake-email.ts credit",
-    "test:fake-email:append": "bun run scripts/test-fake-email.ts debit --append",
-    "test:fake-email:append-test": "bun run scripts/test-fake-email.ts debit --append",
-    "sheets:setup": "bun run scripts/setup-sheets.ts",
-    "sheets:reset": "bun run scripts/reset-sheets.ts",
-    "telegram:webhook-info": "bun run scripts/telegram-webhook-info.ts",
-    "google:get-token": "bun run scripts/get-token.ts"
+    "deploy:setup-gmail-watch": "node dist/scripts/setup-gmail-watch.js",
+    "deploy:setup-telegram-webhook": "node dist/scripts/setup-telegram-webhook.js",
+    "report:send": "node dist/scripts/send-money-report.js",
+    "report:daily": "node dist/scripts/send-money-report.js daily",
+    "report:weekly": "node dist/scripts/send-money-report.js weekly",
+    "report:monthly": "node dist/scripts/send-money-report.js monthly",
+    "test:gmail": "node dist/scripts/test-gmail.js",
+    "test:fake-email": "node dist/scripts/test-fake-email.js",
+    "test:fake-email:debit": "node dist/scripts/test-fake-email.js debit",
+    "test:fake-email:credit": "node dist/scripts/test-fake-email.js credit",
+    "test:fake-email:append": "node dist/scripts/test-fake-email.js debit --append",
+    "test:fake-email:append-test": "node dist/scripts/test-fake-email.js debit --append",
+    "sheets:setup": "node dist/scripts/setup-sheets.js",
+    "sheets:reset": "node dist/scripts/reset-sheets.js",
+    "gemini:list-models": "node dist/scripts/list-gemini-models.js",
+    "telegram:webhook-info": "node dist/scripts/telegram-webhook-info.js",
+    "google:get-token": "node dist/scripts/get-token.js"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
-    "bun-types": "^1.3.13"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

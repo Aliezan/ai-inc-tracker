@@ -1,7 +1,7 @@
 /**
  * One-time script to get a Google OAuth2 refresh token.
  *
- * Run:  bun run scripts/get-token.ts
+ * Run: npm run build && npm run google:get-token
  *
  * 1. Opens a URL in the console — paste it into your browser.
  * 2. Authorize with your Gmail account.

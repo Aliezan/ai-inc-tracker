@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
-import { config } from '../config';
-import { Transaction } from './gemini';
+import { config } from '../config.js';
+import { Transaction } from './gemini.js';
 
 export const SPREADSHEET_TITLE = 'MoneyTrackerBOT-trx-log';
 const LEGACY_TRANSACTION_SHEET_NAME = 'Transactions';
