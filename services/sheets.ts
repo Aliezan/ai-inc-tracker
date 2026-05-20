@@ -16,12 +16,13 @@ export const TRANSACTION_HEADERS = [
   'Source of Fund',
   'Transaction Type',
   'Beneficiary/Merchant',
+  'Category',
   'Amount',
   'Balance',
   'Date/Time',
 ];
 
-export const BANK_ACCOUNTS = ['Jago', 'BCA', 'CIMB Niaga (OCTO)', 'Bank Raya'] as const;
+export const BANK_ACCOUNTS = ['Jago', 'BCA', 'CIMB Niaga (OCTO)', 'Bank Raya', 'Permata ME'] as const;
 
 export const BALANCE_HEADERS = ['Source of Fund', 'Balance', 'Updated At', 'Note'];
 export const STATE_HEADERS = ['Key', 'Value', 'Updated At'];
@@ -48,6 +49,7 @@ export function normalizeBankAccount(value: string) {
   if (normalized.includes('bca')) return 'BCA';
   if (normalized.includes('cimb') || normalized.includes('octo')) return 'CIMB Niaga (OCTO)';
   if (normalized.includes('raya')) return 'Bank Raya';
+  if (normalized.includes('permata')) return 'Permata ME';
 
   return null;
 }
@@ -62,13 +64,14 @@ export async function appendTransaction(tx: Transaction, options: AppendTransact
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: config.sheetId,
-    range: `${quoteSheetName(sheetName)}!A${DATA_START_ROW}:F`,
+    range: `${quoteSheetName(sheetName)}!A${DATA_START_ROW}:G`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [[
         tx.sourceOfFund,
         tx.transactionType,
         tx.beneficiaryMerchant ?? '',
+        tx.category,
         tx.amount,
         tx.balance ?? '',
         tx.dateTime,
@@ -86,7 +89,7 @@ export async function getTransactionsAsCsv(limit = 100): Promise<string> {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: config.sheetId,
-    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:F`,
+    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:G`,
   });
 
   const rows = res.data.values ?? [];
@@ -234,8 +237,9 @@ function getSummaryRowForSheet(sheetName: string) {
     'TOTAL',
     '',
     '',
-    `=SUM(D${DATA_START_ROW}:D)`,
-    `=IFERROR(LOOKUP(2,1/(E${DATA_START_ROW}:E<>""),E${DATA_START_ROW}:E),"")`,
+    '',
+    `=SUM(E${DATA_START_ROW}:E)`,
+    `=IFERROR(LOOKUP(2,1/(F${DATA_START_ROW}:F<>""),F${DATA_START_ROW}:F),"")`,
     'Total amount / latest balance',
   ];
 }

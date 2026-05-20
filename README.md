@@ -101,6 +101,30 @@ Check Telegram webhook status:
 bun run telegram:webhook-info
 ```
 
+## Scheduled Reports
+
+Send a spending/income report to Telegram:
+
+```bash
+bun run report:daily
+bun run report:weekly
+bun run report:monthly
+```
+
+Dry run without sending:
+
+```bash
+bun run report:send -- daily --dry-run
+```
+
+Example cron entries:
+
+```cron
+0 21 * * * cd /app && bun run report:daily
+0 21 * * 0 cd /app && bun run report:weekly
+0 21 1 * * cd /app && bun run report:monthly
+```
+
 List Gemini models available to your API key:
 
 ```bash

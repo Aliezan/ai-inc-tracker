@@ -15,11 +15,11 @@ type ReplyMarkup = {
 };
 
 const QUICK_ACTIONS: Record<string, string> = {
-  today_spend: 'How much did I spend today? Break it down by merchant.',
-  month_summary: 'Summarize my income and expenses this month.',
-  biggest_expenses: 'What are my biggest expenses recently?',
+  today_spend: 'How much did I spend today? Break it down by category, account, and merchant.',
+  month_summary: 'Summarize my income and expenses this month by account and category.',
+  biggest_expenses: 'What are my biggest expenses recently by category?',
   recent_transactions: 'Show my 10 most recent transactions.',
-  balance_check: 'What are my latest account balances across Jago, BCA, CIMB Niaga (OCTO), and Bank Raya?',
+  balance_check: 'What are my latest account balances across Jago, BCA, CIMB Niaga (OCTO), Bank Raya, and Permata ME?',
 };
 
 const MAIN_MENU: ReplyMarkup = {
@@ -48,6 +48,7 @@ function getHelpText() {
     '- /balance BCA 2500000',
     '- /balance CIMB 3000000',
     '- /balance Raya 900000',
+    '- /balance Permata 5000000',
     '',
     `Supported accounts: ${BANK_ACCOUNTS.join(', ')}`,
   ].join('\n');

@@ -5,18 +5,20 @@ import { config } from '../config';
 const ai = new GoogleGenerativeAI(config.geminiApiKey);
 
 export interface Transaction {
-  sourceOfFund: 'Jago' | 'BCA' | 'CIMB Niaga (OCTO)' | 'Bank Raya' | 'Unknown';
+  sourceOfFund: 'Jago' | 'BCA' | 'CIMB Niaga (OCTO)' | 'Bank Raya' | 'Permata ME' | 'Unknown';
   transactionType: string;
   beneficiaryMerchant: string | null;
+  category: string;
   amount: number;
   balance: number | null;
   dateTime: string;
 }
 
 const transactionSchema = z.object({
-  sourceOfFund: z.enum(['Jago', 'BCA', 'CIMB Niaga (OCTO)', 'Bank Raya', 'Unknown']),
+  sourceOfFund: z.enum(['Jago', 'BCA', 'CIMB Niaga (OCTO)', 'Bank Raya', 'Permata ME', 'Unknown']),
   transactionType: z.string().min(1),
   beneficiaryMerchant: z.string().nullable(),
+  category: z.string().min(1),
   amount: z.number().positive(),
   balance: z.number().nullable(),
   dateTime: z.string().min(1),
@@ -87,15 +89,27 @@ export async function parseEmailToTransaction(
     sourceOfFund ("Jago", "BCA", "CIMB Niaga (OCTO)", "Bank Raya", or "Unknown"),
     transactionType (specific banking action, for example "QRIS Payment", "Transfer Out", "Transfer In", "Card Purchase", "Bill Payment", "Cash Withdrawal", "Bank Fee"),
     beneficiaryMerchant (merchant, recipient, sender, or beneficiary name, string or null),
+    category (one short category string),
     amount (number),
     balance (number or null),
     dateTime (ISO 8601).
+
+    Category rules:
+    - Include timing context and spending context when useful.
+    - Use "Weekday Worktime" if the transaction happens Monday-Friday from 07:30 through 16:30.
+    - Use "Commute Home" if the transaction happens Monday-Friday from 16:00 through 19:00 and looks like transport, QRIS, transit, fuel, parking, toll, convenience store, snack, coffee, or dinner on the way home.
+    - Use "Weekend" if the transaction happens Saturday or Sunday.
+    - Use "Off-hours" for weekday transactions outside worktime/commute windows.
+    - For payroll/income, use "Payroll" or "Income" even if it happens during worktime.
+    - For bank transfers, use "Transfer" with timing context only if the beneficiary/description suggests personal spending.
+    - Examples: "Weekday Worktime - Food", "Commute Home - QRIS", "Weekend - Shopping", "Payroll", "Transfer Out".
 
     Use the email sender and subject to infer sourceOfFund when possible:
     - Jago for Bank Jago/Jago senders
     - BCA for BCA senders
     - CIMB Niaga (OCTO) for CIMB/OCTO senders
     - Bank Raya for Bank Raya/Raya senders
+    - Permata ME for Permata/PermataBank/Permata ME senders
 
     Email sender:
     ${metadata.from ?? 'Unknown'}
@@ -139,13 +153,49 @@ export async function answerQuestion(question: string, csvData: string, balances
     ${balancesCsv}
 
     Answer this question concisely.
-    The user has 4 bank accounts: Jago, BCA, CIMB Niaga (OCTO), and Bank Raya.
-    Use Source of Fund to group spending and banking habits by account.
+    The user has 5 bank accounts: Jago, BCA, CIMB Niaga (OCTO), Bank Raya, and Permata ME.
+    Use Source of Fund and Category to group spending, workday behavior, commute spending, weekend spending, and banking habits.
     Include a short "Checked:" line that names the spreadsheet data you used and any obvious limitation.
     Do not include hidden reasoning or chain-of-thought.
 
     Question:
     ${question}
+  `;
+
+  const result = await chatModel.generateContent(prompt);
+  return result.response.text();
+}
+
+export async function summarizeMoneyReport(
+  reportName: string,
+  csvData: string,
+  balancesCsv: string,
+): Promise<string> {
+  const prompt = `
+    You are a personal finance reporting assistant.
+
+    Report name:
+    ${reportName}
+
+    Recent transactions CSV:
+    ${csvData}
+
+    Latest account balances CSV:
+    ${balancesCsv}
+
+    Write a Telegram-friendly money report with complete details.
+    Include:
+    1. Spending total, incoming total, and net movement if inferable from transaction type/category.
+    2. Breakdown by Source of Fund.
+    3. Breakdown by Category, including worktime, commute home, weekend, and off-hours patterns when present.
+    4. Largest outgoing transactions with merchant/beneficiary, account, category, amount, and date/time.
+    5. Incoming money details, especially payroll/income.
+    6. Current balances by account and total balance.
+    7. Practical observations, but do not invent data.
+
+    Use concise section headings.
+    If transaction direction is ambiguous, say so and explain which totals may be approximate.
+    Do not include hidden reasoning or chain-of-thought.
   `;
 
   const result = await chatModel.generateContent(prompt);

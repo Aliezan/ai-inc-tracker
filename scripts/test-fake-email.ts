@@ -20,8 +20,8 @@ Available balance: IDR 4,875,000
   },
 
   credit: {
-    from: 'octo-notification@cimbniaga.co.id',
-    subject: 'Incoming Transfer Notification',
+    from: 'notification@permatabank.co.id',
+    subject: 'Permata ME Incoming Payroll Notification',
     body: `
 Incoming Transfer Notification
 
@@ -32,16 +32,31 @@ Description: May salary test payment
 Current balance: IDR 7,250,000
     `.trim(),
   },
+
+  commute: {
+    from: 'notification@klikbca.com',
+    subject: 'QRIS Transaction Notification',
+    body: `
+QRIS Transaction Notification
+
+Your account was debited on 2026-05-20 17:45:00.
+Amount: IDR 35,000
+Merchant: Kopi Stasiun
+Description: QRIS payment
+Available balance: IDR 3,440,000
+    `.trim(),
+  },
 };
 
 function usage() {
   console.log(`
 Usage:
-  bun run scripts/test-fake-email.ts [debit|credit] [--append]
+  bun run scripts/test-fake-email.ts [debit|credit|commute] [--append]
 
 Examples:
   bun run scripts/test-fake-email.ts
   bun run scripts/test-fake-email.ts credit
+  bun run scripts/test-fake-email.ts commute
   bun run scripts/test-fake-email.ts debit --append
 
 Default mode parses a fake email and prints the transaction only.
