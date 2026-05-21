@@ -9,6 +9,7 @@ import {
   getUncategorizedTransactions,
   updateAccountBalance,
 } from '../services/sheets.js';
+import { isNotificationsEnabled, toggleNotifications } from '../services/notifications.js';
 
 export const telegramRouter = Router();
 
@@ -24,24 +25,32 @@ const QUICK_ACTIONS: Record<string, string> = {
   balance_check: 'What are my latest account balances across Jago, BCA, CIMB Niaga (OCTO), Bank Raya, and Permata ME?',
 };
 
-const MAIN_MENU: ReplyMarkup = {
-  inline_keyboard: [
-    [
-      { text: 'Today spend', callback_data: 'today_spend' },
-      { text: 'Month summary', callback_data: 'month_summary' },
+async function getMainMenu(): Promise<ReplyMarkup> {
+  const notificationsOn = await isNotificationsEnabled();
+  const notifLabel = notificationsOn ? '🔔 Notifications: ON' : '🔕 Notifications: OFF';
+
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Today spend', callback_data: 'today_spend' },
+        { text: 'Month summary', callback_data: 'month_summary' },
+      ],
+      [
+        { text: 'Biggest expenses', callback_data: 'biggest_expenses' },
+        { text: 'Recent transactions', callback_data: 'recent_transactions' },
+      ],
+      [
+        { text: 'Latest balance', callback_data: 'balance_check' },
+      ],
+      [
+        { text: '🏷 Categorize', callback_data: 'categorize' },
+      ],
+      [
+        { text: notifLabel, callback_data: 'toggle_notifications' },
+      ],
     ],
-    [
-      { text: 'Biggest expenses', callback_data: 'biggest_expenses' },
-      { text: 'Recent transactions', callback_data: 'recent_transactions' },
-    ],
-    [
-      { text: 'Latest balance', callback_data: 'balance_check' },
-    ],
-    [
-      { text: '🏷 Categorize', callback_data: 'categorize' },
-    ],
-  ],
-};
+  };
+}
 
 function getHelpText() {
   return [
@@ -57,6 +66,9 @@ function getHelpText() {
     '',
     'Categorization:',
     '- /categorize - Auto-categorize uncategorized transactions',
+    '',
+    'Notifications:',
+    '- /notifications - Toggle transaction & ingestion notifications',
     '',
     `Supported accounts: ${BANK_ACCOUNTS.join(', ')}`,
   ].join('\n');
@@ -96,13 +108,13 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
 
   const text = message?.text;
   if (text === '/start' || text === '/help') {
-    await sendTelegramMessage(getHelpText(), MAIN_MENU);
+    await sendTelegramMessage(getHelpText(), await getMainMenu());
     return res.sendStatus(200);
   }
 
   if (text === '/balances') {
     const balancesCsv = await getBalancesAsCsv();
-    await sendTelegramMessage(`Latest balances:\n\n${balancesCsv}`, MAIN_MENU);
+    await sendTelegramMessage(`Latest balances:\n\n${balancesCsv}`, await getMainMenu());
     return res.sendStatus(200);
   }
 
@@ -114,7 +126,18 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
     }
 
     await updateAccountBalance(parsed.sourceOfFund, parsed.amount, parsed.note);
-    await sendTelegramMessage(`Updated ${parsed.sourceOfFund} balance to ${parsed.amount}.`, MAIN_MENU);
+    await sendTelegramMessage(`Updated ${parsed.sourceOfFund} balance to ${parsed.amount}.`, await getMainMenu());
+    return res.sendStatus(200);
+  }
+
+  if (text === '/notifications' || callbackQuery?.data === 'toggle_notifications') {
+    const newState = await toggleNotifications();
+    const statusEmoji = newState ? '🔔' : '🔕';
+    const statusText = newState ? 'ON' : 'OFF';
+    await sendTelegramMessage(
+      `${statusEmoji} Transaction & ingestion notifications are now *${statusText}*`,
+      await getMainMenu(),
+    );
     return res.sendStatus(200);
   }
 
@@ -124,7 +147,7 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
 
     const uncategorized = await getUncategorizedTransactions();
     if (uncategorized.length === 0) {
-      await sendTelegramMessage('✅ All transactions are already categorized!', MAIN_MENU);
+      await sendTelegramMessage('✅ All transactions are already categorized!', await getMainMenu());
       return res.sendStatus(200);
     }
 
@@ -134,7 +157,7 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
     const updates = await categorizeTransactions(uncategorized);
     await batchUpdateTransactionCategories(updates);
 
-    await sendTelegramMessage(`✅ Categorized ${updates.length} transactions!`, MAIN_MENU);
+    await sendTelegramMessage(`✅ Categorized ${updates.length} transactions!`, await getMainMenu());
     return res.sendStatus(200);
   }
 
@@ -153,7 +176,7 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
     await sendChatAction('typing');
     await sendTelegramMessage('Asking Gemini with the latest transaction and balance context...');
     const answer = await answerQuestion(question, csv, balancesCsv);
-    await sendTelegramMessage(answer, MAIN_MENU);
+    await sendTelegramMessage(answer, await getMainMenu());
   } catch (err) {
     console.error('Telegram handler error:', err);
     await sendTelegramMessage('Something went wrong. Check the logs.');
