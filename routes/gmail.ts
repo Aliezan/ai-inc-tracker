@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import { getEmailForTransactionParsing, getGmailAuth } from '../services/gmail.js';
 import { parseEmailToTransaction } from '../services/gemini.js';
 import { appendTransaction, getAppState, setAppState } from '../services/sheets.js';
+import { notifyTransactionSaved, notifyIngestionComplete } from '../services/notifications.js';
 import { config } from '../config.js';
 
 export const gmailRouter = Router();
@@ -77,12 +78,18 @@ async function processNewEmails(startHistoryId: string) {
 
   const messages = history.data.history?.flatMap(h => h.messagesAdded ?? []) ?? [];
 
+  let emailsProcessed = 0;
+  let transactionsSaved = 0;
+  let skipped = 0;
+
   for (const { message } of messages) {
     if (!message?.id) continue;
+    emailsProcessed++;
 
     const email = await getEmailForTransactionParsing(message.id);
     if (!email.body) {
       console.log('Gmail message skipped: no readable body', message.id);
+      skipped++;
       continue;
     }
 
@@ -92,6 +99,7 @@ async function processNewEmails(startHistoryId: string) {
         subject: email.subject,
         from: email.from,
       });
+      skipped++;
       continue;
     }
 
@@ -101,10 +109,16 @@ async function processNewEmails(startHistoryId: string) {
     });
     if (!tx) {
       console.log('Gmail message skipped: no valid transaction found', message.id);
+      skipped++;
       continue;
     }
 
     await appendTransaction(tx);
     console.log('Transaction saved:', tx);
+    transactionsSaved++;
+
+    await notifyTransactionSaved(tx);
   }
+
+  await notifyIngestionComplete({ emailsProcessed, transactionsSaved, skipped });
 }
