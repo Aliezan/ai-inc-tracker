@@ -49,14 +49,12 @@ gmailRouter.post('/webhook/gmail', async (req, res) => {
   const { historyId } = decoded;
   if (!historyId) return res.sendStatus(204);
 
-  res.sendStatus(204);
-
   try {
     const lastHistoryId = await getAppState(GMAIL_HISTORY_STATE_KEY);
     if (!lastHistoryId) {
       await setAppState(GMAIL_HISTORY_STATE_KEY, historyId);
       console.log('Gmail history cursor initialized:', historyId);
-      return;
+      return res.sendStatus(204);
     }
 
     await processNewEmails(lastHistoryId);
@@ -64,6 +62,8 @@ gmailRouter.post('/webhook/gmail', async (req, res) => {
   } catch (err) {
     console.error('Gmail webhook processing error:', err);
   }
+
+  res.sendStatus(204);
 });
 
 async function processNewEmails(startHistoryId: string) {

@@ -188,10 +188,16 @@ export async function summarizeMoneyReport(
     1. Spending total, incoming total, and net movement if inferable from transaction type/category.
     2. Breakdown by Source of Fund.
     3. Breakdown by Category, including worktime, commute home, weekend, and off-hours patterns when present.
-    4. Largest outgoing transactions with merchant/beneficiary, account, category, amount, and date/time.
-    5. Incoming money details, especially payroll/income.
-    6. Current balances by account and total balance.
-    7. Practical observations, but do not invent data.
+    4. Merchant/Beneficiary analysis:
+       - Group transactions by Beneficiary/Merchant name to identify where money is actually going.
+       - Recognize and label recurring merchants (e.g., GrabFood, GoFood, Tokopedia, Shopee, Indomaret, Alfamart, KFC, McDonald's, Starbucks, etc.).
+       - Classify merchants into sub-categories: Food Delivery, Ride-hailing/Transport, E-commerce/Online Shopping, Convenience Store, Coffee Shop, Restaurant/Dining, Subscription/Digital, Utilities/Bills, Transfer to Person, etc.
+       - Show top merchants by total spend with transaction count and total amount.
+       - Flag any new merchants not seen before in the data if possible.
+    5. Largest outgoing transactions with merchant/beneficiary, account, category, amount, and date/time.
+    6. Incoming money details, especially payroll/income.
+    7. Current balances by account and total balance.
+    8. Practical observations based on merchant patterns (e.g., "You ordered food delivery 8 times this week", "Transport spending is higher than usual"), but do not invent data.
 
     Use concise section headings.
     If transaction direction is ambiguous, say so and explain which totals may be approximate.
@@ -200,4 +206,80 @@ export async function summarizeMoneyReport(
 
   const result = await chatModel.generateContent(prompt);
   return result.response.text();
+}
+
+// --- Transaction Categorization ---
+
+const CATEGORIZE_BATCH_SIZE = 30;
+
+const categorizationResultSchema = z.array(z.object({
+  row: z.number(),
+  category: z.string().min(1),
+}));
+
+export async function categorizeTransactions(
+  rows: Array<{ row: number; data: string[] }>,
+): Promise<Array<{ row: number; category: string }>> {
+  const results: Array<{ row: number; category: string }> = [];
+
+  for (let i = 0; i < rows.length; i += CATEGORIZE_BATCH_SIZE) {
+    const batch = rows.slice(i, i + CATEGORIZE_BATCH_SIZE);
+    const batchResults = await categorizeBatch(batch);
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+async function categorizeBatch(
+  rows: Array<{ row: number; data: string[] }>,
+): Promise<Array<{ row: number; category: string }>> {
+  const rowLines = rows.map(r => {
+    const [source, type, merchant, category, amount, , dateTime] = r.data;
+    return `${r.row}|${source ?? ''}|${type ?? ''}|${merchant ?? ''}|${category ?? ''}|${amount ?? ''}|${dateTime ?? ''}`;
+  }).join('\n');
+
+  const prompt = `
+    You are a personal finance categorization assistant.
+    Analyze each transaction's Beneficiary/Merchant name, Transaction Type, and existing Category to assign a specific Transaction Category.
+
+    Use these Transaction Categories:
+    - Food & Beverage (restaurants, cafes, food delivery like GrabFood, GoFood, fast food chains)
+    - Groceries (supermarkets, convenience stores like Indomaret, Alfamart)
+    - Transportation (ride-hailing like Grab/Gojek, fuel, tolls, parking, public transit, MRT, KRL)
+    - Online Shopping (e-commerce like Tokopedia, Shopee, Lazada, Blibli)
+    - Entertainment (movies, games, streaming services)
+    - Subscription & Digital (app subscriptions, digital services, top-up, e-wallet)
+    - Utilities & Bills (electricity, water, internet, phone bills)
+    - Transfer (personal transfers to individuals)
+    - Income & Payroll (salary, freelance income, refunds)
+    - Healthcare (pharmacy, hospital, clinic, insurance)
+    - Education (courses, books, school fees)
+    - Coffee & Drinks (coffee shops like Starbucks, Kopi Kenangan, Janji Jiwa)
+    - Fashion & Lifestyle (clothing, accessories, beauty)
+    - Other (only if nothing above fits)
+
+    Rules:
+    - Prioritize merchant/beneficiary name for categorization.
+    - If the merchant name clearly indicates a category (e.g., "GRAB*" = Transportation, "GOFOOD" = Food & Beverage), use it.
+    - If the merchant is a person's name and type is Transfer, use "Transfer".
+    - If it's payroll/salary, always use "Income & Payroll".
+    - Be specific: don't use "Other" if there's a reasonable match.
+
+    Transactions (format: row|Source of Fund|Transaction Type|Beneficiary/Merchant|Category|Amount|Date/Time):
+    ${rowLines}
+
+    Return ONLY a JSON array: [{"row": <number>, "category": "<string>"}]
+    Return one entry per input row. The "row" value must match exactly.
+  `;
+
+  const text = await generateTransactionJson(prompt);
+  const parsed = categorizationResultSchema.safeParse(JSON.parse(text));
+
+  if (!parsed.success) {
+    console.warn('Gemini returned invalid categorization JSON:', parsed.error.flatten());
+    return [];
+  }
+
+  return parsed.data;
 }

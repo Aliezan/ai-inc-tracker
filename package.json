@@ -23,7 +23,8 @@
     "sheets:reset": "node dist/scripts/reset-sheets.js",
     "gemini:list-models": "node dist/scripts/list-gemini-models.js",
     "telegram:webhook-info": "node dist/scripts/telegram-webhook-info.js",
-    "google:get-token": "node dist/scripts/get-token.js"
+    "google:get-token": "node dist/scripts/get-token.js",
+    "categorize": "node dist/scripts/categorize-transactions.js"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

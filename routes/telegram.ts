@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { config } from '../config.js';
-import { answerQuestion } from '../services/gemini.js';
+import { answerQuestion, categorizeTransactions } from '../services/gemini.js';
 import {
   BANK_ACCOUNTS,
+  batchUpdateTransactionCategories,
   getBalancesAsCsv,
   getTransactionsAsCsv,
+  getUncategorizedTransactions,
   updateAccountBalance,
 } from '../services/sheets.js';
 
@@ -35,6 +37,9 @@ const MAIN_MENU: ReplyMarkup = {
     [
       { text: 'Latest balance', callback_data: 'balance_check' },
     ],
+    [
+      { text: '🏷 Categorize', callback_data: 'categorize' },
+    ],
   ],
 };
 
@@ -49,6 +54,9 @@ function getHelpText() {
     '- /balance CIMB 3000000',
     '- /balance Raya 900000',
     '- /balance Permata 5000000',
+    '',
+    'Categorization:',
+    '- /categorize - Auto-categorize uncategorized transactions',
     '',
     `Supported accounts: ${BANK_ACCOUNTS.join(', ')}`,
   ].join('\n');
@@ -79,10 +87,8 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
   const message = update?.message;
   const callbackQuery = update?.callback_query;
 
-  res.sendStatus(200); 
-
   const chatId = message?.chat?.id ?? callbackQuery?.message?.chat?.id;
-  if (String(chatId) !== config.telegramChatId) return;
+  if (String(chatId) !== config.telegramChatId) return res.sendStatus(200);
 
   if (callbackQuery) {
     await answerCallbackQuery(callbackQuery.id);
@@ -91,32 +97,52 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
   const text = message?.text;
   if (text === '/start' || text === '/help') {
     await sendTelegramMessage(getHelpText(), MAIN_MENU);
-    return;
+    return res.sendStatus(200);
   }
 
   if (text === '/balances') {
     const balancesCsv = await getBalancesAsCsv();
     await sendTelegramMessage(`Latest balances:\n\n${balancesCsv}`, MAIN_MENU);
-    return;
+    return res.sendStatus(200);
   }
 
   if (text?.startsWith('/balance ')) {
     const parsed = parseBalanceCommand(text);
     if (!parsed) {
       await sendTelegramMessage('Use: /balance Jago 1250000');
-      return;
+      return res.sendStatus(200);
     }
 
     await updateAccountBalance(parsed.sourceOfFund, parsed.amount, parsed.note);
     await sendTelegramMessage(`Updated ${parsed.sourceOfFund} balance to ${parsed.amount}.`, MAIN_MENU);
-    return;
+    return res.sendStatus(200);
+  }
+
+  if (text === '/categorize' || callbackQuery?.data === 'categorize') {
+    await sendChatAction('typing');
+    await sendTelegramMessage('🔍 Reading uncategorized transactions...');
+
+    const uncategorized = await getUncategorizedTransactions();
+    if (uncategorized.length === 0) {
+      await sendTelegramMessage('✅ All transactions are already categorized!', MAIN_MENU);
+      return res.sendStatus(200);
+    }
+
+    await sendTelegramMessage(`Found ${uncategorized.length} uncategorized transactions. Asking Gemini to categorize...`);
+    await sendChatAction('typing');
+
+    const updates = await categorizeTransactions(uncategorized);
+    await batchUpdateTransactionCategories(updates);
+
+    await sendTelegramMessage(`✅ Categorized ${updates.length} transactions!`, MAIN_MENU);
+    return res.sendStatus(200);
   }
 
   const question = callbackQuery
     ? QUICK_ACTIONS[callbackQuery.data as keyof typeof QUICK_ACTIONS]
     : text;
 
-  if (!question) return;
+  if (!question) return res.sendStatus(200);
 
   try {
     await sendChatAction('typing');
@@ -132,6 +158,8 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
     console.error('Telegram handler error:', err);
     await sendTelegramMessage('Something went wrong. Check the logs.');
   }
+
+  res.sendStatus(200);
 });
 
 async function answerCallbackQuery(callbackQueryId: string) {

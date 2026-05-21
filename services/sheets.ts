@@ -20,6 +20,7 @@ export const TRANSACTION_HEADERS = [
   'Amount',
   'Balance',
   'Date/Time',
+  'Transaction Category',
 ];
 
 export const BANK_ACCOUNTS = ['Jago', 'BCA', 'CIMB Niaga (OCTO)', 'Bank Raya', 'Permata ME'] as const;
@@ -64,7 +65,7 @@ export async function appendTransaction(tx: Transaction, options: AppendTransact
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: config.sheetId,
-    range: `${quoteSheetName(sheetName)}!A${DATA_START_ROW}:G`,
+    range: `${quoteSheetName(sheetName)}!A${DATA_START_ROW}:H`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [[
@@ -75,6 +76,7 @@ export async function appendTransaction(tx: Transaction, options: AppendTransact
         tx.amount,
         tx.balance ?? '',
         tx.dateTime,
+        '',
       ]],
     },
   });
@@ -89,7 +91,7 @@ export async function getTransactionsAsCsv(limit = 100): Promise<string> {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: config.sheetId,
-    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:G`,
+    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:H`,
   });
 
   const rows = res.data.values ?? [];
@@ -146,6 +148,49 @@ export async function updateAccountBalance(sourceOfFund: string, balance: number
     range: `${quoteSheetName(TRANSACTION_SHEETS.balances)}!A${DATA_START_ROW}:D`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values },
+  });
+}
+
+export async function getUncategorizedTransactions(): Promise<Array<{ row: number; data: string[] }>> {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.sheetId,
+    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:H`,
+  });
+
+  const rows = res.data.values ?? [];
+  const uncategorized: Array<{ row: number; data: string[] }> = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const transactionCategory = rows[i][7] ?? '';
+    if (!transactionCategory.trim()) {
+      uncategorized.push({
+        row: DATA_START_ROW + i,
+        data: rows[i],
+      });
+    }
+  }
+
+  return uncategorized;
+}
+
+export async function batchUpdateTransactionCategories(
+  updates: Array<{ row: number; category: string }>,
+) {
+  if (updates.length === 0) return;
+
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: config.sheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: updates.map(({ row, category }) => ({
+        range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!H${row}`,
+        values: [[category]],
+      })),
+    },
   });
 }
 
@@ -241,6 +286,7 @@ function getSummaryRowForSheet(sheetName: string) {
     `=SUM(E${DATA_START_ROW}:E)`,
     `=IFERROR(LOOKUP(2,1/(F${DATA_START_ROW}:F<>""),F${DATA_START_ROW}:F),"")`,
     'Total amount / latest balance',
+    '',
   ];
 }
 
