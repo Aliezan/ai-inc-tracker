@@ -77,12 +77,31 @@ async function checkTelegramWebhook(): Promise<string> {
 }
 
 async function checkPubSub(): Promise<string> {
-  const auth = getGmailAuth();
-  const pubsub = google.pubsub({ version: 'v1', auth });
-
+  // The OAuth2 token is scoped for Gmail/Sheets — not Pub/Sub directly.
+  // Instead, verify config and use the Gmail API to confirm push delivery is active.
   const topicName = config.pubsub.topicName;
-  const res = await pubsub.projects.topics.get({ topic: topicName });
-  return `Topic: ${res.data.name ?? topicName}`;
+  const projectId = config.pubsub.projectId;
+  if (!topicName || !projectId) {
+    throw new Error('PUBSUB_TOPIC or GOOGLE_PROJECT_ID not configured');
+  }
+
+  // Gmail's watch endpoint returns the current push subscription status.
+  // If watch is not set up, historyId will be absent.
+  const gmail = google.gmail({ version: 'v1', auth: getGmailAuth() });
+  const res = await gmail.users.watch({
+    userId: 'me',
+    requestBody: {
+      topicName,
+      labelFilterAction: 'include',
+      labelIds: ['INBOX'],
+    },
+  });
+
+  const expiry = res.data.expiration
+    ? new Date(Number(res.data.expiration)).toISOString()
+    : 'unknown';
+
+  return `Topic: ${topicName}, Watch expiry: ${expiry}`;
 }
 
 async function checkGmailWatch(): Promise<string> {
