@@ -101,6 +101,34 @@ export async function getTransactionsAsCsv(limit = 100): Promise<string> {
   return [TRANSACTION_HEADERS.join(','), ...recent.map(r => r.join(','))].join('\n');
 }
 
+export interface StoredTransaction {
+  sourceOfFund: string;
+  transactionType: string;
+  beneficiaryMerchant: string;
+  amount: string;
+  balance: string;
+  dateTime: string;
+}
+
+export async function getRecentTransactions(limit = 50): Promise<StoredTransaction[]> {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.sheetId,
+    range: `${quoteSheetName(TRANSACTION_SHEETS.real)}!A${DATA_START_ROW}:H`,
+  });
+
+  const rows = res.data.values ?? [];
+  return rows.slice(-limit).map(row => ({
+    sourceOfFund: row[0] ?? '',
+    transactionType: row[1] ?? '',
+    beneficiaryMerchant: row[2] ?? '',
+    amount: row[4] ?? '',
+    balance: row[5] ?? '',
+    dateTime: row[6] ?? '',
+  }));
+}
+
 export async function getBalancesAsCsv(): Promise<string> {
   const sheets = google.sheets({ version: 'v4', auth: getAuth() });
 

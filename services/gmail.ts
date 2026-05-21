@@ -179,3 +179,79 @@ export async function setupGmailWatch() {
   console.log('Gmail watch set up:', res.data);
   return res.data;
 }
+
+// ─── Transaction email detection ─────────────────────────────────────────────
+
+export function looksLikeTransactionEmail(email: { subject: string; from: string; body: string | null }): boolean {
+  const text = [email.subject, email.from, email.body ?? ''].join('\n').toLowerCase();
+
+  const hasMoney = /\b(idr|rp\.?|usd|\$)\s*[\d.,]+|\bamount\s*:/i.test(text);
+  const hasTransactionWord = [
+    'transaction',
+    'debit',
+    'debited',
+    'credit',
+    'credited',
+    'transfer',
+    'payment',
+    'purchase',
+    'merchant',
+    'available balance',
+    'current balance',
+  ].some(keyword => text.includes(keyword));
+
+  return hasMoney && hasTransactionWord;
+}
+
+// ─── Fetch recent inbox emails ───────────────────────────────────────────────
+
+export interface InboxEmail {
+  id: string;
+  subject: string;
+  from: string;
+  date: string;
+  body: string | null;
+  isTransactionLike: boolean;
+}
+
+export async function getRecentInboxEmails(maxResults = 20): Promise<InboxEmail[]> {
+  const gmail = google.gmail({ version: 'v1', auth: getGmailAuth() });
+
+  const list = await gmail.users.messages.list({
+    userId: 'me',
+    maxResults,
+    labelIds: ['INBOX'],
+  });
+
+  const messageIds = list.data.messages ?? [];
+  const results: InboxEmail[] = [];
+
+  for (const { id } of messageIds) {
+    if (!id) continue;
+
+    const msg = await gmail.users.messages.get({
+      userId: 'me',
+      id,
+      format: 'full',
+    });
+
+    const subject = getMessageHeader(msg.data, 'Subject') ?? '';
+    const from = getMessageHeader(msg.data, 'From') ?? '';
+    const date = getMessageHeader(msg.data, 'Date') ?? '';
+    const body = extractEmailBody(msg.data.payload);
+
+    const emailInfo = { subject, from, body };
+
+    results.push({
+      id,
+      subject,
+      from,
+      date,
+      body,
+      isTransactionLike: looksLikeTransactionEmail(emailInfo),
+    });
+  }
+
+  return results;
+}
+

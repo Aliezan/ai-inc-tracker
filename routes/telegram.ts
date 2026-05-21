@@ -1,21 +1,37 @@
 import { Router } from 'express';
 import { config } from '../config.js';
-import { answerQuestion, categorizeTransactions } from '../services/gemini.js';
+import { answerQuestion, categorizeTransactions, parseEmailToTransaction } from '../services/gemini.js';
 import {
   BANK_ACCOUNTS,
+  appendTransaction,
   batchUpdateTransactionCategories,
   getBalancesAsCsv,
+  getRecentTransactions,
   getTransactionsAsCsv,
   getUncategorizedTransactions,
   updateAccountBalance,
 } from '../services/sheets.js';
-import { isNotificationsEnabled, toggleNotifications } from '../services/notifications.js';
+import { isNotificationsEnabled, toggleNotifications, notifyTransactionSaved } from '../services/notifications.js';
+import { runDiagnostics, formatDiagnosticsReport } from '../services/diagnostics.js';
+import { getRecentInboxEmails } from '../services/gmail.js';
+import type { Transaction } from '../services/gemini.js';
 
 export const telegramRouter = Router();
+
+// In-memory store for missed transactions pending user confirmation
+let pendingMissedTransactions: Transaction[] | null = null;
 
 type ReplyMarkup = {
   inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
 };
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'decimal',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
 const QUICK_ACTIONS: Record<string, string> = {
   today_spend: 'How much did I spend today? Break it down by category, account, and merchant.',
@@ -48,6 +64,10 @@ async function getMainMenu(): Promise<ReplyMarkup> {
       [
         { text: notifLabel, callback_data: 'toggle_notifications' },
       ],
+      [
+        { text: '🔧 Diagnostics', callback_data: 'diagnostics' },
+        { text: '📩 Check emails', callback_data: 'check_emails' },
+      ],
     ],
   };
 }
@@ -69,6 +89,10 @@ function getHelpText() {
     '',
     'Notifications:',
     '- /notifications - Toggle transaction & ingestion notifications',
+    '',
+    'System:',
+    '- /diagnostics - Check all system connections',
+    '- /checkemails - Find transaction emails that may have been missed',
     '',
     `Supported accounts: ${BANK_ACCOUNTS.join(', ')}`,
   ].join('\n');
@@ -138,6 +162,119 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
       `${statusEmoji} Transaction & ingestion notifications are now *${statusText}*`,
       await getMainMenu(),
     );
+    return res.sendStatus(200);
+  }
+
+  if (text === '/diagnostics' || callbackQuery?.data === 'diagnostics') {
+    await sendChatAction('typing');
+    await sendTelegramMessage('🔧 Running system diagnostics...');
+
+    const results = await runDiagnostics();
+    const report = formatDiagnosticsReport(results);
+    await sendTelegramMessage(report, await getMainMenu());
+    return res.sendStatus(200);
+  }
+
+  if (text === '/checkemails' || callbackQuery?.data === 'check_emails') {
+    await sendChatAction('typing');
+    await sendTelegramMessage('📩 Scanning recent inbox emails...');
+
+    try {
+      const emails = await getRecentInboxEmails(15);
+      const transactionEmails = emails.filter(e => e.isTransactionLike);
+
+      if (transactionEmails.length === 0) {
+        await sendTelegramMessage('No transaction-like emails found in recent inbox.', await getMainMenu());
+        return res.sendStatus(200);
+      }
+
+      // Cross-reference with existing transactions in the sheet
+      const stored = await getRecentTransactions(100);
+
+      // Build a set of fingerprints from stored transactions for matching
+      const storedFingerprints = new Set(
+        stored.map(tx => `${tx.amount}|${tx.dateTime}`),
+      );
+
+      // Parse each transaction email and check if it's already in the sheet
+      const missed: Array<{ email: typeof transactionEmails[0]; parsed: Transaction }> = [];
+
+      for (const email of transactionEmails) {
+        if (!email.body) continue;
+        const parsed = await parseEmailToTransaction(email.body, {
+          from: email.from,
+          subject: email.subject,
+        });
+        if (!parsed) continue;
+
+        const fingerprint = `${parsed.amount}|${parsed.dateTime}`;
+        if (!storedFingerprints.has(fingerprint)) {
+          missed.push({ email, parsed });
+        }
+      }
+
+      if (missed.length === 0) {
+        await sendTelegramMessage(
+          `✅ Checked ${transactionEmails.length} transaction emails — all are already in the sheet.`,
+          await getMainMenu(),
+        );
+        return res.sendStatus(200);
+      }
+
+      // Show missed transactions and offer to ingest them
+      const lines = [
+        `⚠️ Found ${missed.length} potentially missed transaction(s):`,
+        '',
+      ];
+
+      for (const { parsed } of missed) {
+        lines.push(
+          `• ${parsed.sourceOfFund} | ${parsed.transactionType} | Rp ${formatCurrency(parsed.amount)} | ${parsed.dateTime}`,
+        );
+      }
+
+      lines.push('', 'Tap "Ingest missed" to add them to the sheet.');
+
+      // Store missed transactions temporarily for the ingest callback
+      pendingMissedTransactions = missed.map(m => m.parsed);
+
+      await sendTelegramMessage(lines.join('\n'), {
+        inline_keyboard: [
+          [
+            { text: '✅ Ingest missed', callback_data: 'ingest_missed' },
+            { text: '❌ Skip', callback_data: 'skip_missed' },
+          ],
+        ],
+      });
+    } catch (err) {
+      console.error('Check emails error:', err);
+      await sendTelegramMessage('Failed to check emails. See logs.', await getMainMenu());
+    }
+    return res.sendStatus(200);
+  }
+
+  if (callbackQuery?.data === 'ingest_missed') {
+    if (!pendingMissedTransactions || pendingMissedTransactions.length === 0) {
+      await sendTelegramMessage('No pending missed transactions to ingest.', await getMainMenu());
+      return res.sendStatus(200);
+    }
+
+    await sendChatAction('typing');
+    let ingested = 0;
+    for (const tx of pendingMissedTransactions) {
+      await appendTransaction(tx);
+      await notifyTransactionSaved(tx);
+      ingested++;
+    }
+
+    pendingMissedTransactions = null;
+    await sendTelegramMessage(`✅ Ingested ${ingested} missed transaction(s) into the sheet.`, await getMainMenu());
+    return res.sendStatus(200);
+  }
+
+  if (callbackQuery?.data === 'skip_missed') {
+    pendingMissedTransactions = null;
+    await sendTelegramMessage('Skipped. No transactions were added.', await getMainMenu());
     return res.sendStatus(200);
   }
 

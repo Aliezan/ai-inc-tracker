@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
-import { getEmailForTransactionParsing, getGmailAuth } from '../services/gmail.js';
+import { getEmailForTransactionParsing, getGmailAuth, looksLikeTransactionEmail } from '../services/gmail.js';
 import { parseEmailToTransaction } from '../services/gemini.js';
 import { appendTransaction, getAppState, setAppState } from '../services/sheets.js';
 import { notifyTransactionSaved, notifyIngestionComplete } from '../services/notifications.js';
@@ -9,27 +9,6 @@ import { config } from '../config.js';
 export const gmailRouter = Router();
 
 const GMAIL_HISTORY_STATE_KEY = 'gmail.lastHistoryId';
-
-function looksLikeTransactionEmail(email: { subject: string; from: string; body: string | null }) {
-  const text = [email.subject, email.from, email.body ?? ''].join('\n').toLowerCase();
-
-  const hasMoney = /\b(idr|rp\.?|usd|\$)\s*[\d.,]+|\bamount\s*:/i.test(text);
-  const hasTransactionWord = [
-    'transaction',
-    'debit',
-    'debited',
-    'credit',
-    'credited',
-    'transfer',
-    'payment',
-    'purchase',
-    'merchant',
-    'available balance',
-    'current balance',
-  ].some(keyword => text.includes(keyword));
-
-  return hasMoney && hasTransactionWord;
-}
 
 gmailRouter.post('/webhook/gmail', async (req, res) => {
   if (config.webhookSecret && req.query.token !== config.webhookSecret) {
