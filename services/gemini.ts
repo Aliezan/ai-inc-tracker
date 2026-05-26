@@ -5,6 +5,8 @@ import { logError } from './logging.js';
 
 const ai = new GoogleGenerativeAI(config.geminiApiKey);
 
+const DEFAULT_GEMINI_BACKOFF_MS = 10 * 60 * 1000;
+
 export interface Transaction {
   sourceOfFund: 'Jago' | 'BCA' | 'CIMB Niaga (OCTO)' | 'Bank Raya' | 'Permata ME' | 'Unknown';
   transactionType: string;
@@ -39,9 +41,66 @@ function getModelNames() {
   return [...new Set([config.geminiModel, config.geminiFallbackModel].filter(Boolean))];
 }
 
-function isRetryableGeminiError(err: unknown) {
+function getGeminiErrorStatus(err: unknown) {
   const status = (err as { status?: number })?.status;
+  if (typeof status === 'number') return status;
+
+  const code = (err as { code?: number })?.code;
+  return typeof code === 'number' ? code : undefined;
+}
+
+function parseRetryDelayMs(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+
+  const secondsMatch = /^(\d+(?:\.\d+)?)s$/.exec(value.trim());
+  if (secondsMatch) return Math.ceil(Number(secondsMatch[1]) * 1000);
+
+  const plainSeconds = Number(value);
+  return Number.isFinite(plainSeconds) ? Math.ceil(plainSeconds * 1000) : null;
+}
+
+function getRetryAfterMs(err: unknown): number {
+  const retryAfter = (err as { response?: { headers?: { get?: (name: string) => string | null } } })?.response
+    ?.headers
+    ?.get?.('retry-after');
+  const retryAfterMs = parseRetryDelayMs(retryAfter);
+  if (retryAfterMs) return retryAfterMs;
+
+  const details = (err as { errorDetails?: Array<{ retryDelay?: unknown }> })?.errorDetails ?? [];
+  for (const detail of details) {
+    const detailRetryMs = parseRetryDelayMs(detail.retryDelay);
+    if (detailRetryMs) return detailRetryMs;
+  }
+
+  return DEFAULT_GEMINI_BACKOFF_MS;
+}
+
+function isRetryableGeminiError(err: unknown) {
+  const status = getGeminiErrorStatus(err);
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+export class GeminiTransientError extends Error {
+  cause: unknown;
+  retryAfterMs: number;
+
+  constructor(message: string, cause: unknown, retryAfterMs = DEFAULT_GEMINI_BACKOFF_MS) {
+    super(message);
+    this.name = 'GeminiTransientError';
+    this.cause = cause;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+export class GeminiRateLimitError extends GeminiTransientError {
+  constructor(cause: unknown, retryAfterMs = DEFAULT_GEMINI_BACKOFF_MS) {
+    super('Gemini rate limit exceeded', cause, retryAfterMs);
+    this.name = 'GeminiRateLimitError';
+  }
+}
+
+export function isGeminiTransientError(err: unknown): err is GeminiTransientError {
+  return err instanceof GeminiTransientError;
 }
 
 async function generateTransactionJson(prompt: string) {
@@ -59,6 +118,10 @@ async function generateTransactionJson(prompt: string) {
         return result.response.text();
       } catch (err) {
         lastError = err;
+        if (getGeminiErrorStatus(err) === 429) {
+          throw new GeminiRateLimitError(err, getRetryAfterMs(err));
+        }
+
         if (!isRetryableGeminiError(err) || attempt === 3) break;
 
         console.warn(`Gemini ${modelName} failed with a retryable error. Retry ${attempt}/2...`);
@@ -67,6 +130,10 @@ async function generateTransactionJson(prompt: string) {
     }
 
     console.warn(`Gemini model ${modelName} did not return a usable response. Trying fallback if configured.`);
+  }
+
+  if (isRetryableGeminiError(lastError)) {
+    throw new GeminiTransientError('Gemini temporarily unavailable', lastError, getRetryAfterMs(lastError));
   }
 
   throw lastError;
@@ -137,6 +204,10 @@ export async function parseEmailToTransaction(
 
     return parsed.data;
   } catch (err) {
+    if (isGeminiTransientError(err)) {
+      throw err;
+    }
+
     logError('Gemini parse error:', err);
     return null;
   }
