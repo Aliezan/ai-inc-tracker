@@ -12,6 +12,7 @@
 import 'dotenv/config';
 import { google } from 'googleapis';
 import express from 'express';
+import { logError } from '../services/logging.js';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -59,7 +60,7 @@ app.get('/oauth/callback', async (req, res) => {
     // Shut down after receiving the token
     setTimeout(() => process.exit(0), 1000);
   } catch (err) {
-    console.error('Error exchanging code for tokens:', err);
+    logError('Error exchanging code for tokens:', err);
     res.status(500).send('Failed to exchange code');
   }
 });

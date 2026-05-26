@@ -5,6 +5,7 @@ import { parseEmailToTransaction } from '../services/gemini.js';
 import { appendTransaction, getAppState, setAppState } from '../services/sheets.js';
 import { notifyTransactionSaved, notifyIngestionComplete } from '../services/notifications.js';
 import { config } from '../config.js';
+import { logError } from '../services/logging.js';
 
 export const gmailRouter = Router();
 
@@ -40,7 +41,7 @@ gmailRouter.post('/webhook/gmail', async (req, res) => {
   try {
     decoded = JSON.parse(Buffer.from(message.data, 'base64').toString());
   } catch (err) {
-    console.error('Invalid Gmail Pub/Sub payload:', err);
+    logError('Invalid Gmail Pub/Sub payload:', err);
     return res.sendStatus(204);
   }
 
@@ -70,7 +71,7 @@ gmailRouter.post('/webhook/gmail', async (req, res) => {
     await setAppState(GMAIL_HISTORY_STATE_KEY, historyId);
     return res.sendStatus(204);
   } catch (err) {
-    console.error('Gmail webhook processing error:', err);
+    logError('Gmail webhook processing error:', err);
 
     // Return 500 so Pub/Sub will retry delivery.
     // This prevents silently dropping emails when downstream services
@@ -174,7 +175,7 @@ async function processNewEmails(startHistoryId: string) {
     } catch (err) {
       // If a single message fails, log it but let the outer error handler
       // propagate so Pub/Sub retries the whole batch.
-      console.error(`Failed to process message ${message.id}:`, err);
+      logError(`Failed to process message ${message.id}:`, err);
       throw err;
     }
   }

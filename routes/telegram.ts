@@ -14,6 +14,7 @@ import {
 import { isNotificationsEnabled, toggleNotifications, notifyTransactionSaved } from '../services/notifications.js';
 import { runDiagnostics, formatDiagnosticsReport } from '../services/diagnostics.js';
 import { getRecentInboxEmails } from '../services/gmail.js';
+import { logError } from '../services/logging.js';
 import type { Transaction } from '../services/gemini.js';
 
 export const telegramRouter = Router();
@@ -247,7 +248,7 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
         ],
       });
     } catch (err) {
-      console.error('Check emails error:', err);
+      logError('Check emails error:', err);
       await sendTelegramMessage('Failed to check emails. See logs.', await getMainMenu());
     }
     return res.sendStatus(200);
@@ -315,7 +316,7 @@ telegramRouter.post('/webhook/telegram', async (req, res) => {
     const answer = await answerQuestion(question, csv, balancesCsv);
     await sendTelegramMessage(answer, await getMainMenu());
   } catch (err) {
-    console.error('Telegram handler error:', err);
+    logError('Telegram handler error:', err);
     await sendTelegramMessage('Something went wrong. Check the logs.');
   }
 

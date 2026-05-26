@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { config } from '../config.js';
 import { registerTelegramWebhook } from '../routes/telegram.js';
+import { logError } from '../services/logging.js';
 
 async function main() {
   if (!config.publicBaseUrl) {
@@ -11,6 +12,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Telegram webhook setup failed:', err);
+  logError('Telegram webhook setup failed:', err);
   process.exit(1);
 });

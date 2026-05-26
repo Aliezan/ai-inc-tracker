@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { categorizeTransactions } from '../services/gemini.js';
 import { batchUpdateTransactionCategories, getUncategorizedTransactions } from '../services/sheets.js';
+import { logError } from '../services/logging.js';
 
 async function main() {
   console.log('Reading uncategorized transactions...');
@@ -18,6 +19,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Categorization failed:', err);
+  logError('Categorization failed:', err);
   process.exit(1);
 });

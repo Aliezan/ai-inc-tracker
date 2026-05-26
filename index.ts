@@ -2,6 +2,7 @@ import express from 'express';
 import { config } from './config.js';
 import { gmailRouter } from './routes/gmail.js';
 import { telegramRouter } from './routes/telegram.js';
+import { logError } from './services/logging.js';
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.use(gmailRouter);
 app.use(telegramRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Unhandled request error:', err);
+  logError('Unhandled request error:', err);
   res.sendStatus(500);
 });
 
@@ -36,7 +37,7 @@ function shutdown(signal: string) {
   console.log(`${signal} received. Shutting down...`);
   server.close(err => {
     if (err) {
-      console.error('Shutdown failed:', err);
+      logError('Shutdown failed:', err);
       process.exit(1);
     }
 
@@ -48,10 +49,10 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('unhandledRejection', err => {
-  console.error('Unhandled promise rejection:', err);
+  logError('Unhandled promise rejection:', err);
 });
 
 process.on('uncaughtException', err => {
-  console.error('Uncaught exception:', err);
+  logError('Uncaught exception:', err);
   process.exit(1);
 });

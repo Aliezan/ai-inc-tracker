@@ -57,6 +57,30 @@ https://your-service.example.com/webhook/gmail?token=WEBHOOK_SECRET
 
 If `TELEGRAM_WEBHOOK_SECRET` is set, `deploy:setup-telegram-webhook` passes it to Telegram and incoming Telegram requests are verified.
 
+### Google OAuth `invalid_grant`
+
+If Gmail, Sheets, Telegram diagnostics, or webhook handling fails with:
+
+```text
+invalid_grant: Token has been expired or revoked.
+```
+
+the request is reaching the app, but Google rejected `GOOGLE_REFRESH_TOKEN`.
+Rotate it with:
+
+```bash
+npm run build
+npm run google:get-token
+```
+
+Then update `GOOGLE_REFRESH_TOKEN` in local and production env, redeploy, and run:
+
+```bash
+npm run deploy:setup-gmail-watch
+```
+
+If the old refresh token appeared in logs, revoke it in Google Account / Google Cloud Console before generating the replacement.
+
 ## Google Sheets
 
 `sheets:setup` creates and formats:

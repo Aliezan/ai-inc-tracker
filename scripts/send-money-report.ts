@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { summarizeMoneyReport } from '../services/gemini.js';
 import { getBalancesAsCsv, getTransactionsAsCsv } from '../services/sheets.js';
 import { sendTelegramMessage } from '../services/telegram.js';
+import { logError } from '../services/logging.js';
 
 const REPORT_LIMITS = {
   daily: 80,
@@ -79,6 +80,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Money report failed:', err);
+  logError('Money report failed:', err);
   process.exit(1);
 });

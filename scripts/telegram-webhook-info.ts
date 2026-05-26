@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { config } from '../config.js';
+import { logError } from '../services/logging.js';
 
 async function main() {
   const res = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getWebhookInfo`);
@@ -9,6 +10,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Failed to fetch Telegram webhook info:', err);
+  logError('Failed to fetch Telegram webhook info:', err);
   process.exit(1);
 });

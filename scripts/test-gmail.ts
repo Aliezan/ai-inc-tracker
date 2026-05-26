@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { google } from 'googleapis';
 import { extractEmailBody } from '../services/gmail.js';
+import { logError } from '../services/logging.js';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -122,8 +123,5 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('❌ Error:', err.message ?? err);
-  if (err.response?.data) {
-    console.error('API error details:', JSON.stringify(err.response.data, null, 2));
-  }
+  logError('❌ Error:', err);
 });

@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { getAppState, setAppState } from './sheets.js';
+import { logError } from './logging.js';
 import type { Transaction } from './gemini.js';
 
 const NOTIFICATION_STATE_KEY = 'notifications.enabled';
@@ -114,6 +115,6 @@ async function sendNotification(text: string): Promise<void> {
     }
   } catch (err) {
     // Notifications should never crash the main flow
-    console.error('Failed to send notification:', err);
+    logError('Failed to send notification:', err);
   }
 }

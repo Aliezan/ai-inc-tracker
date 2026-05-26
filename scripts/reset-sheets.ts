@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { resetTransactionLogs, setupTransactionSheets, TRANSACTION_SHEETS } from '../services/sheets.js';
+import { isInvalidGrantError, logError } from '../services/logging.js';
 
 function usage() {
   console.log(`
@@ -42,12 +43,12 @@ async function main() {
 }
 
 main().catch(err => {
-  if (err?.message === 'invalid_grant' || err?.response?.data?.error === 'invalid_grant') {
+  if (isInvalidGrantError(err)) {
     console.error('Sheet reset failed: Google rejected GOOGLE_REFRESH_TOKEN.');
     console.error('Run `npm run build && npm run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
     process.exit(1);
   }
 
-  console.error('Sheet reset failed:', err);
+  logError('Sheet reset failed:', err);
   process.exit(1);
 });

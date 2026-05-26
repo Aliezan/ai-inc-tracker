@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { parseEmailToTransaction } from '../services/gemini.js';
 import { appendTestTransaction, TRANSACTION_SHEETS } from '../services/sheets.js';
+import { isInvalidGrantError, logError } from '../services/logging.js';
 
 const samples = {
   debit: {
@@ -108,13 +109,13 @@ async function main() {
 }
 
 main().catch(err => {
-  if (err?.message === 'invalid_grant' || err?.response?.data?.error === 'invalid_grant') {
+  if (isInvalidGrantError(err)) {
     console.error('Fake email test failed: Google rejected GOOGLE_REFRESH_TOKEN.');
     console.error('Run `npm run build && npm run google:get-token`, then replace GOOGLE_REFRESH_TOKEN in .env.');
     console.error('Make sure the token is generated with the same GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET currently in .env.');
     process.exit(1);
   }
 
-  console.error('Fake email test failed:', err);
+  logError('Fake email test failed:', err);
   process.exit(1);
 });

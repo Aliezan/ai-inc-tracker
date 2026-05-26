@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { config } from '../config.js';
+import { logError } from './logging.js';
 
 const ai = new GoogleGenerativeAI(config.geminiApiKey);
 
@@ -136,7 +137,7 @@ export async function parseEmailToTransaction(
 
     return parsed.data;
   } catch (err) {
-    console.error('Gemini parse error:', err);
+    logError('Gemini parse error:', err);
     return null;
   }
 }
